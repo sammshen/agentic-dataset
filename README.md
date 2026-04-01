@@ -29,13 +29,12 @@ python convert_lmcache_to_mooncake.py \
 
 ### What it does
 
-Four-field conversion, no content modification:
+Three-field conversion, no content modification:
 
 | HF field | mooncake_trace field | Transform |
 |---|---|---|
 | `input` | `messages` | Rename (OpenAI-format messages passed as-is) |
 | `session_id` | `session_id` | Direct |
-| `session_timestamp` | `timestamp` | Seconds to milliseconds |
 | `output_length` | `output_length` | Direct |
 
 ## 2. Run with AIPerf
@@ -48,8 +47,7 @@ aiperf profile \
     --streaming \
     --input-file /workspace/results/lmcache_traces.jsonl \
     --custom-dataset-type mooncake_trace \
-    --fixed-schedule \
-    --fixed-schedule-auto-offset \
+    --request-rate 10 \
     --concurrency 128 \
     --benchmark-duration 1800 \
     --benchmark-grace-period 0 \
@@ -63,7 +61,6 @@ aiperf profile \
 
 ### Key flags
 
-- `--fixed-schedule` — replays requests at the original timestamps from the trace. Remove this to send requests as fast as possible (open-loop).
-- `--fixed-schedule-auto-offset` — normalizes timestamps to start from 0.
+- `--request-rate 10` — target requests per second. Adjust this to control the load. Without it, requests are sent as fast as possible (limited only by `--concurrency`).
 - `--concurrency 128` — max concurrent requests in flight.
 - `--dataset-sampling-strategy random` — add this if you need more data than the 764 sessions provide (resamples with replacement).

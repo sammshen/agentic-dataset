@@ -15,7 +15,7 @@
 """Convert sammshen/lmcache-agentic-traces HuggingFace dataset to mooncake_trace JSONL.
 
 Each row in the HF dataset has cumulative OpenAI-format messages. This script
-converts them to mooncake_trace entries grouped by session_id with timestamps.
+converts them to mooncake_trace entries grouped by session_id.
 
 Usage:
     python scripts/convert_lmcache_to_mooncake.py \
@@ -62,7 +62,6 @@ def convert_row(row: dict) -> dict:
         "session_id": row["session_id"],
         "messages": row["input"],
         "output_length": row["output_length"],
-        "timestamp": int(row["session_timestamp"] * 1000),
     }
 
 
