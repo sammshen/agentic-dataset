@@ -18,11 +18,11 @@ Each row in the HF dataset has cumulative OpenAI-format messages. This script
 converts them to mooncake_trace entries grouped by session_id.
 
 Usage:
-    python scripts/convert_lmcache_to_mooncake.py \
+    python convert_lmcache_to_mooncake.py \
         --output /workspace/results/lmcache_traces.jsonl
 
     # Or with a local copy of the dataset:
-    python scripts/convert_lmcache_to_mooncake.py \
+    python convert_lmcache_to_mooncake.py \
         --input /path/to/train.jsonl \
         --output /workspace/results/lmcache_traces.jsonl
 """
@@ -58,11 +58,18 @@ def download_dataset(cache_dir: Path):
 
 def convert_row(row: dict) -> dict:
     """Convert one HF dataset row to mooncake_trace format."""
-    return {
+    result = {
         "session_id": row["session_id"],
         "messages": row["input"],
         "output_length": row["output_length"],
     }
+    # Include pre_gap as delay (ms) for trace replay timing.
+    # This is the real tool-execution / user-thinking time between
+    # the previous response completing and this request being sent.
+    pre_gap = row.get("pre_gap", 0)
+    if pre_gap and pre_gap > 0:
+        result["delay"] = int(pre_gap * 1000)  # seconds -> ms
+    return result
 
 
 def main() -> None:
