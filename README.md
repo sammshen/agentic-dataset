@@ -98,6 +98,29 @@ This simulates 20 concurrent users with turns spaced by `num_users / qps = 2s`. 
 
 All modes guarantee sequential intra-session ordering via a credit-return mechanism — request N+1 is only created after request N completes.
 
+### Understanding `pre_gap` / `delay` timing
+
+Each request in the trace includes a `pre_gap` (seconds in the HF dataset) / `delay` (milliseconds in the converted JSONL) field that captures the real time gap between the previous LLM response finishing and the current request being sent:
+
+```
+ session turn 0       turn 1                    turn 2
+|---inference---|--pre_gap--|---inference---|--pre_gap--|---inference---|
+                ^           ^               ^           ^
+           resp 0 done   req 1 sent    resp 1 done   req 2 sent
+```
+
+This gap is the **tool execution and agent processing time** — running bash commands, reading files, making web requests, or whatever the agent framework does between LLM calls. It does *not* include LLM inference time, which depends on the serving system being benchmarked.
+
+**How different modes use `delay`:**
+
+- **`--concurrency`**: Ignores `delay` entirely. Next turn fires immediately after the previous response completes. This creates maximum cache pressure — best for benchmarking KV cache hit rates since there's no idle time for cache eviction between turns.
+
+- **`--fixed-schedule`**: Honors `delay` exactly. After receiving the last token of response N-1, waits `delay` ms before sending request N. This faithfully reproduces the original agent's request pattern, including realistic idle periods where the cache may be evicted by other sessions' traffic.
+
+- **`--user-centric-rate`**: Uses its own computed `turn_gap = num_users / qps` instead of `delay`. The gap is determined by the target QPS, not the original trace timing.
+
+**When timing matters for cache benchmarking:** The gap between requests determines whether a session's KV cache stays resident or gets evicted. With `--concurrency` (no gaps), the cache is accessed immediately — best case for hit rates. With `--fixed-schedule` (real gaps), other sessions' traffic may evict the cache during the gap — more realistic but harder to control. Choose based on whether you're measuring peak cache effectiveness or production-realistic performance.
+
 ### Key flags
 
 | Flag | Description |
